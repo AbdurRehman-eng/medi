@@ -59,11 +59,12 @@ function UserDashboard() {
           >
             Go to Profile
           </button>
+          {/* Replaced "Check Appointments" with "Add Appointment" */}
           <button
-            onClick={() => router.push("/pages/check_appointment")}
+            onClick={() => router.push("/pages/add_appointment")}
             className="w-full px-6 py-3 bg-green-600 text-white text-lg font-semibold rounded-lg hover:bg-green-700 transition"
           >
-            Check Appointments
+            Add Appointment
           </button>
           <button
             onClick={() => router.push("/pages/appointment_status")}

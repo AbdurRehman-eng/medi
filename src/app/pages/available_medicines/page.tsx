@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/app/supabase/supabaseclient';
+import { useUserContext } from '@/app/context/UserContext';
 
 interface Medicine {
   id: number;
@@ -12,16 +13,15 @@ interface Medicine {
 }
 
 export default function SearchByPharmacy() {
-  const [query, setQuery] = useState<string>(''); // Pharmacy name input
   const [data, setData] = useState<Medicine[]>([]); // Fetched medicines
   const [loading, setLoading] = useState<boolean>(false); // Loading state
   const [error, setError] = useState<string | null>(null); // Error state
   const [changes, setChanges] = useState<Record<number, boolean>>({}); // Track availability changes
+  const { userId } = useUserContext(); // Use session hook to get the user session
 
-  // Search functionality
-  const handleSearch = async () => {
-    if (!query.trim()) {
-      setError('Please enter a pharmacy name');
+  const fetchData = async () => {
+    if (!userId) {
+      setError('User not logged in');
       return;
     }
 
@@ -29,13 +29,42 @@ export default function SearchByPharmacy() {
     setError(null);
 
     try {
-      const { data: fetchedData, error } = await supabase
+      // Step 1: Get the 'id' from the user table using userId
+      const { data: userData, error: userError } = await supabase
+        .from('user')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (userError || !userData) {
+        setError('User not found');
+        return;
+      }
+
+      const userIdFromDb = userData.id;
+
+      // Step 2: Get the pharmacy_name from the pharmacist table using the user id
+      const { data: pharmacistData, error: pharmacistError } = await supabase
+        .from('pharmacist')
+        .select('pharmacy_name')
+        .eq('id', userIdFromDb)
+        .single(); // We expect a single result since a user can have one pharmacy
+
+      if (pharmacistError || !pharmacistData) {
+        setError('Pharmacy not found for this user');
+        return;
+      }
+
+      const pharmacyName = pharmacistData.pharmacy_name;
+
+      // Step 3: Fetch medicines from the 'main' table based on the pharmacy name
+      const { data: fetchedData, error: fetchError } = await supabase
         .from('main')
         .select('id, medicine_name, ingredients, address, availability')
-        .ilike('pharmacy_name', `%${query}%`);
+        .ilike('pharmacy_name', `%${pharmacyName}%`);
 
-      if (error) {
-        setError(error.message);
+      if (fetchError) {
+        setError(fetchError.message);
       } else {
         setData(fetchedData || []);
       }
@@ -45,6 +74,10 @@ export default function SearchByPharmacy() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [userId]); // Run the effect whenever userId changes
 
   // Handle availability toggle
   const handleAvailabilityChange = (id: number, newAvailability: boolean) => {
@@ -74,7 +107,9 @@ export default function SearchByPharmacy() {
 
       // Refetch data after committing changes
       setChanges({});
-      handleSearch();
+      setLoading(true);
+      setError(null);
+      await fetchData(); // Call the fetchData function again
     } catch (e) {
       setError('An unexpected error occurred while committing changes.');
     } finally {
@@ -85,25 +120,8 @@ export default function SearchByPharmacy() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center py-10 px-4">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">
-        Search Medicines by Pharmacy
+        Medicines Available at Your Pharmacy
       </h1>
-
-      {/* Search Input */}
-      <div className="mb-6 flex w-full max-w-xl">
-        <input
-          type="text"
-          placeholder="Enter pharmacy name"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 px-4 py-2 border border-gray-300 rounded-l-lg focus:ring-2 focus:ring-blue-400 focus:outline-none"
-        />
-        <button
-          onClick={handleSearch}
-          className="px-6 py-2 bg-blue-600 text-white font-medium rounded-r-lg hover:bg-blue-700 transition"
-        >
-          Search
-        </button>
-      </div>
 
       {/* Error Message */}
       {error && (
@@ -165,9 +183,9 @@ export default function SearchByPharmacy() {
       )}
 
       {/* No Results Message */}
-      {!loading && data.length === 0 && query.trim() && (
+      {!loading && data.length === 0 && (
         <div className="mt-6 text-gray-600">
-          No records found for pharmacy "{query}".
+          No medicines found for the pharmacy.
         </div>
       )}
     </div>

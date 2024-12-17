@@ -13,6 +13,7 @@ function RegisterPharmacist() {
     email: "",
     phone: "",
     password: "",
+    pharmacy_name: "",  // New field added for pharmacy name
   });
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -37,9 +38,9 @@ function RegisterPharmacist() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const { name, address, email, phone, password } = formData;
+    const { name, address, email, phone, password, pharmacy_name } = formData;
 
-    if (!name || !address || !email || !phone || !password) {
+    if (!name || !address || !email || !phone || !password || !pharmacy_name) {
       setError("Please fill in all fields");
       return;
     }
@@ -70,19 +71,34 @@ function RegisterPharmacist() {
       const highestId = maxIdData?.[0]?.id || 0; // If no rows exist, start with ID 1
       const newId = highestId + 1;
 
+      //---------------------------------------------------------------
+      const { data: maxUserIdData, error: maxUserIdError } = await supabase
+        .from("user")
+        .select("user_id")
+        .order("user_id", { ascending: false })
+        .limit(1);
+
+      if (maxUserIdError) {
+        setError(`Error retrieving ID: ${maxUserIdError.message}`);
+        return;
+      }
+
+      // Determine the new ID
+      const highestUserId = maxUserIdData?.[0]?.user_id || 0; // If no rows exist, start with ID 1
+      const newUserId = highestUserId + 1;
+
       // Step 2: Insert into the pharmacist table with the manually assigned ID
       const { data: pharmacistData, error: pharmacistError } = await supabase
         .from("pharmacist")
-        .insert([
-          {
-            id: newId, // Assign the new ID manually
-            name,
-            address,
-            email,
-            phone,
-            password
-          },
-        ]);
+        .insert([{
+          id: newId, // Assign the new ID manually
+          name,
+          address,
+          email,
+          phone,
+          password,
+          pharmacy_name,  // Add the pharmacy name here
+        }]);
 
       if (pharmacistError) {
         setError(`Error adding pharmacist: ${pharmacistError.message}`);
@@ -90,13 +106,12 @@ function RegisterPharmacist() {
       }
 
       // Step 3: Insert into the user table with type "pharmacist"
-      const { error: userInsertError } = await supabase.from("user").insert([
-        {
-          id: newId, // Use the same manually assigned ID
-          type: "pharmacist",
-          email: formData.email
-        },
-      ]);
+      const { error: userInsertError } = await supabase.from("user").insert([{
+        user_id: newUserId,
+        id: newId, // Use the same manually assigned ID
+        type: "pharmacist",
+        email: formData.email,
+      }]);
 
       if (userInsertError) {
         setError(`Error adding user: ${userInsertError.message}`);
@@ -113,8 +128,9 @@ function RegisterPharmacist() {
         email: "",
         phone: "",
         password: "",
+        pharmacy_name: "",  // Reset the new field as well
       });
-      router.push("/pages/dashboard");
+      router.push("/pages/login");
     } catch (err: any) {
       setError(err.message || "An unexpected error occurred.");
     }
@@ -208,6 +224,21 @@ function RegisterPharmacist() {
             name="password"
             id="password"
             value={formData.password}
+            onChange={handleChange}
+            style={{ padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
+            required
+          />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+          <label htmlFor="pharmacy_name" style={{ fontWeight: "bold" }}>
+            Pharmacy Name:
+          </label>
+          <input
+            type="text"
+            name="pharmacy_name"
+            id="pharmacy_name"
+            value={formData.pharmacy_name}
             onChange={handleChange}
             style={{ padding: "10px", border: "1px solid #ccc", borderRadius: "4px" }}
             required

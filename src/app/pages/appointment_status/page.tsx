@@ -30,7 +30,7 @@ export default function AppointmentStatus() {
       try {
         // Fetch the patient's ID using the userId from the 'users' table
         const { data: userData, error: userError } = await supabase
-          .from('users')
+          .from('user')
           .select('id')
           .eq('user_id', userId)
           .single();

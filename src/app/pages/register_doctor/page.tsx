@@ -127,8 +127,7 @@ export default function RegisterDoctor() {
         password: '',
       });
 
-      // Redirect to the dashboard
-      router.push('/pages/dashboard');
+      router.push('/pages/login');
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
       setSuccessMessage('');

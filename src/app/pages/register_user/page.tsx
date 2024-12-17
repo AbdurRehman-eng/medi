@@ -49,8 +49,8 @@ function RegisterPatient() {
       // Step 1: Get the highest user_id from the user table
       const { data: maxUserIdData, error: maxUserIdError } = await supabase
         .from("user")
-        .select("id")
-        .order("id", { ascending: false })
+        .select("user_id")
+        .order("user_id", { ascending: false })
         .limit(1);
   
       if (maxUserIdError) {
@@ -59,7 +59,7 @@ function RegisterPatient() {
       }
   
       // Determine the new user_id (max(user_id) + 1)
-      const highestUserId = maxUserIdData?.[0]?.id || 0; // If no rows exist, start with ID 1
+      const highestUserId = maxUserIdData?.[0]?.user_id || 0; // If no rows exist, start with ID 1
       const newUserId = highestUserId + 1;
   
       // Step 2: Get the highest id from the patient table
